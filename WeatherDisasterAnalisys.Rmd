@@ -7,6 +7,7 @@ output: html_document
 
 ##Synopsis
 This project will address some basic questions about severe weather events:
+       
         - Across the United States, which types of events are most harmful with respect to population health?
         - Across the United States, which types of events have the greatest economic consequences?
 
@@ -18,23 +19,24 @@ We will find that...
 ###Used r packages
 For further analisys and data transformations will be used several r packages. 
 Check that needed packages have been installed and install them if not:
-```{r}
-list.of.packages <- c("ggplot2", "dplyr", "RCurl")
+```{r, message=FALSE}
+list.of.packages <- c("ggplot2", "dplyr", "tidyr")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
-sapply(list.of.packages, require, character.only = TRUE)
+sapply(list.of.packages, require, quietly = TRUE, character.only = TRUE)
+
+#remove unused variables
 rm(list.of.packages)
 rm(new.packages)
 ```
 
 ###Data source
-The data for this project come in the form of a comma-separated-value file compressed via the bzip2 algorithm to reduce its size. It comes from course web site by this link: https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2
+The data for this project come in the form of a comma-separated-value file compressed via the bzip2 algorithm to reduce its size. It comes from course web site by this link: http://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2
 
 Download data unless it's alredy done:
 ```{r}
-
 if (!file.exists("./data")) {dir.create("./data")}
-if (!file.exists("./data/StormData.bz2")) {download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv                                           .bz2", "./data/StormData.bz2", mode = "wb")}
+if (!file.exists("./data/StormData.bz2")) {download.file("http://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2", "./data/StormData.bz2", mode = "wb")}
 ```
 
 ###Data preparation
@@ -52,13 +54,48 @@ colnames(data)
 ```
 
 For the purpose of this project we need only some, so get rid of others to make dataset smaller.
-```{r}
+```{r, cache=TRUE}
 data <- select(data, EVTYPE, 23:28)
 ```
 
-According to [Storm Data Documentation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf) section 2.7: 
->Estimates should be rounded to three significant digits, followed by an alphabetical character signifying the magnitude of the 
->number, i.e., 1.55B for $1,550,000,000.  Alphabetical characters used to signify magnitude include “K” for thousands, “M” for >millions, and “B” for billions.
->...
->If the dollar amount of damage is unknown, or not available, check the “no information available” box. 
+According to [Storm Data Documentation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf) section 2.7:
+
+>Estimates should be rounded to three significant digits, followed by an alphabetical character signifying the magnitude of the number, i.e., 1.55B for $1,550,000,000.  Alphabetical characters used to signify magnitude include “K” for thousands, “M” for >millions, and “B” for billions.
+<...>
+>If the dollar amount of damage is unknown, or not available, check the “no information available” box.
+
+Lets look at PROPDMGEXP and CROPDMGEXP colums that contains these magnitude signifyers:
+```{r}
+table(data[data$PROPDMG!=0, "PROPDMGEXP"])
+table(data[data$CROPDMG!=0, "CROPDMGEXP"])
+```
+
+For this analisys we'll assume that lower case characters means that capital ones do.
+As we can see, there are several signifyers of unkown type like "h" or "?" but they have very small accurance when the corresponding DMG colums is not equal zero. There could different theryes but we will not do any bold assumtions and accrording to such a small occurance just drop the rows with them.
+```{r}
+#make all chars same size
+data$PROPDMGEXP <- tolower(as.character(data$PROPDMGEXP))
+data$CROPDMGEXP <- tolower(as.character(data$CROPDMGEXP))
+
+#making multiplyer
+data$PROPDMGEXP[data$PROPDMGEXP!="b" & data$PROPDMGEXP!="m" & data$PROPDMGEXP!="k"] <- NA
+data$PROPDMGEXP[data$PROPDMGEXP=="b"] <- 1000000000
+data$PROPDMGEXP[data$PROPDMGEXP=="m"] <- 1000000
+data$PROPDMGEXP[data$PROPDMGEXP=="k"] <- 1000
+
+data$CROPDMGEXP[data$CROPDMGEXP!="b" & data$CROPDMGEXP!="m" & data$CROPDMGEXP!="k"] <- NA
+data$CROPDMGEXP[data$CROPDMGEXP=="b"] <- 1000000000
+data$CROPDMGEXP[data$CROPDMGEXP=="m"] <- 1000000
+data$CROPDMGEXP[data$CROPDMGEXP=="k"] <- 1000
+
+#Multiply DMG columns
+data$PROPDMG <- data$PROPDMG * as.numeric(data$PROPDMGEXP)
+data$CROPDMG <- data$CROPDMG * as.numeric(data$CROPDMGEXP)
+```
+
+Now we will conver this dataset to narrow tidy form:
+```{r}
+data <- select(data, EVTYPE, FATALITIES, INJURIES, PROPDMG, CROPDMG)
+data <- gather(data, DMGTYPE, VALUE, -EVTYPE, na.rm = TRUE)
+```
 ##Results
