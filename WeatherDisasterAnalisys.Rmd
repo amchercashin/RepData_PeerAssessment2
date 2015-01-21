@@ -1,0 +1,64 @@
+---
+title: "Weather events wich resulted in most population health and econimics damage"
+author: "Alexandr Cherkashin"
+date: "Wednesday, January 21, 2015"
+output: html_document
+---
+
+##Synopsis
+This project will address some basic questions about severe weather events:
+        - Across the United States, which types of events are most harmful with respect to population health?
+        - Across the United States, which types of events have the greatest economic consequences?
+
+This project involves exploring the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur, as well as estimates of any fatalities, injuries, and property damage. The events in the database start in the year 1950 and end in November 2011.
+
+We will find that...
+
+##Data Processing
+###Used r packages
+For further analisys and data transformations will be used several r packages. 
+Check that needed packages have been installed and install them if not:
+```{r}
+list.of.packages <- c("ggplot2", "dplyr", "RCurl")
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages)
+sapply(list.of.packages, require, character.only = TRUE)
+rm(list.of.packages)
+rm(new.packages)
+```
+
+###Data source
+The data for this project come in the form of a comma-separated-value file compressed via the bzip2 algorithm to reduce its size. It comes from course web site by this link: https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2
+
+Download data unless it's alredy done:
+```{r}
+
+if (!file.exists("./data")) {dir.create("./data")}
+if (!file.exists("./data/StormData.bz2")) {download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv                                           .bz2", "./data/StormData.bz2", mode = "wb")}
+```
+
+###Data preparation
+Extract and read the data
+```{r, cache=TRUE}
+con <- bzfile("./data/StormData.bz2", open="r")
+data <- read.csv(con)
+close(con)
+rm(con)
+```
+
+Look at colum names:
+```{r}
+colnames(data)
+```
+
+For the purpose of this project we need only some, so get rid of others to make dataset smaller.
+```{r}
+data <- select(data, EVTYPE, 23:28)
+```
+
+According to [Storm Data Documentation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf) section 2.7: 
+>Estimates should be rounded to three significant digits, followed by an alphabetical character signifying the magnitude of the 
+>number, i.e., 1.55B for $1,550,000,000.  Alphabetical characters used to signify magnitude include “K” for thousands, “M” for >millions, and “B” for billions.
+>...
+>If the dollar amount of damage is unknown, or not available, check the “no information available” box. 
+##Results
