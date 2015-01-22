@@ -19,3 +19,18 @@ colnames(data)
 
 
 data <- select(data, EVTYPE, 23:28)
+
+unique(data[grep("tornado", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] )
+unique(data$EVTYPE)
+
+p <- ggplot(data, aes(x = EVTYPE, y = VALUE)) +
+        #facet_grid(fun ~ companygroup, scales = "free_y") +
+        geom_point() +
+        #geom_smooth(method="loess", se = F) +
+        #scale_y_continuous(labels = space) +
+        #ylab("РўС‹СЃСЏС‡ СЂСѓР±Р»РµР№") +
+        #xlab("2015") +
+        #theme_bw() +
+        t#heme(axis.text.x  = element_text(hjust=1,angle=90, vjust=0.5)) +
+        scale_x_datetime(labels = date_format("%B"), breaks = date_breaks("month"))
+print(p)

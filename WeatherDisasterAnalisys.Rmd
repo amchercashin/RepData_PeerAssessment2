@@ -93,9 +93,86 @@ data$PROPDMG <- data$PROPDMG * as.numeric(data$PROPDMGEXP)
 data$CROPDMG <- data$CROPDMG * as.numeric(data$CROPDMGEXP)
 ```
 
-Now we will conver this dataset to narrow tidy form:
+Now we will convert this dataset to narrow tidy form:
 ```{r}
 data <- select(data, EVTYPE, FATALITIES, INJURIES, PROPDMG, CROPDMG)
 data <- gather(data, DMGTYPE, VALUE, -EVTYPE, na.rm = TRUE)
+```
+
+There are 985 levels of EVTYPE factor. We will try to reduce the number of unique values
+```{r}
+data <- filter(data, !grepl("Summary", EVTYPE, ignore.case = TRUE))
+data$EVTYPE <- toupper(as.character(data$EVTYPE))
+data[grep("heat", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Heat"
+data[grep("warm", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Heat"
+data[grep("hot", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Heat"
+data[grep("HIGH TEMPER", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Heat"
+data[grep("HYPERTHERMIA", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Heat"
+data[grep("Record High", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Heat"
+
+data[grep("cold", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Cold"
+data[grep("cool", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Cold"
+data[grep("frost", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Cold"
+data[grep("HYPORTHERMIA", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Cold"
+data[grep("freez", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Cold"
+data[grep("frost", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Cold"
+data[grep("ice", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Cold"
+data[grep("icy", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Cold"
+data[grep("LOW TEMPER", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Cold"
+data[grep("RECORD LOW", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Cold"
+
+data[grep("tornado", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Tornado"
+data[grep("spout", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Tornado"
+
+data[grep("swell", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "High swells"
+data[grep("surf", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "High swells"
+data[grep("wave", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "High swells"
+data[grep("ROUGH SEAS", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "High swells"
+
+data[grep("wind", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "High wind/hurricane"
+data[grep("hurricane", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "High wind/hurricane"
+data[grep("wnd", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "High wind/hurricane"
+data[grep("TYPHOON", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "High wind/hurricane"
+data[grep("tsunami", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "High wind/hurricane"
+data[grep("storm", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "High wind/hurricane"
+
+data[grep("snow", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Heavy snow"
+data[grep("blizz", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Heavy snow"
+data[grep("wint", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Heavy snow"
+
+data[grep("flood", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Flood"
+data[grep("FLD", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Flood"
+data[grep("water", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Flood"
+data[grep("stream", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Flood"
+data[grep("tide", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Flood"
+
+data[grep("rain", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Heavy rain"
+data[grep("SHOWER", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Heavy rain"
+data[grep("precipit", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Heavy rain"
+
+data[grep("dry", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Drought"
+data[grep("drought", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Drought"
+
+data[grep("hail", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Hail"
+
+data[grep("fog", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Fog"
+
+data[grep("wet", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Wet"
+
+data[grep("fire", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Wildfire"
+
+data[grep("light", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Lightning"
+
+data[grep("rip", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Rip current"
+
+data[grep("avalanc", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Avalanche"
+```
+
+All other values that a still in upper case with map to "Other" category. Group all types together.
+```{r}
+data$EVTYPE[data$EVTYPE == toupper(data$EVTYPE)] <- "Other"
+data <- group_by(data, EVTYPE, DMGTYPE) %>% summarise(VALUE = sum(VALUE))
+data <- mutate(data, QUESTION = factor(ifelse(DMGTYPE == "PROPDMG" | DMGTYPE == "CROPDMG", "Economic harm", "Health harm")))
+data$EVTYPE <- factor(data$EVTYPE)
 ```
 ##Results
