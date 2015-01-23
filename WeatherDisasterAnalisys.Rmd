@@ -1,7 +1,7 @@
 ---
-title: "Weather events wich resulted in most population health and econimics damage"
+title: "Weather events wich resulted in most population health and econimic damage"
 author: "Alexandr Cherkashin"
-date: "Wednesday, January 21, 2015"
+date: "Wednesday, January 23, 2015"
 output: html_document
 ---
 
@@ -13,14 +13,15 @@ This project will address some basic questions about severe weather events:
 
 This project involves exploring the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur, as well as estimates of any fatalities, injuries, and property damage. The events in the database start in the year 1950 and end in November 2011.
 
-We will find that...
+We will find that such events like **tornadoes**, **hurricanes**, **heat** and **floods** are most harmfull to population health.
+For economic most severe events are **floods**, **hurricanes**, **tornadoes** and **drought**.
 
 ##Data Processing
 ###Used r packages
-For further analisys and data transformations will be used several r packages. 
-Check that needed packages have been installed and install them if not:
+For further analisys and data transformations will use several r packages. 
+Check that needed packages had been installed and install them if not:
 ```{r, message=FALSE}
-list.of.packages <- c("ggplot2", "dplyr", "tidyr")
+list.of.packages <- c("ggplot2", "dplyr", "tidyr", "scales")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
 sapply(list.of.packages, require, quietly = TRUE, character.only = TRUE)
@@ -33,14 +34,14 @@ rm(new.packages)
 ###Data source
 The data for this project come in the form of a comma-separated-value file compressed via the bzip2 algorithm to reduce its size. It comes from course web site by this link: http://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2
 
-Download data unless it's alredy done:
+Download data unless it's already done:
 ```{r}
 if (!file.exists("./data")) {dir.create("./data")}
 if (!file.exists("./data/StormData.bz2")) {download.file("http://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2", "./data/StormData.bz2", mode = "wb")}
 ```
 
 ###Data preparation
-Extract and read the data
+Extract and read the data:
 ```{r, cache=TRUE}
 con <- bzfile("./data/StormData.bz2", open="r")
 data <- read.csv(con)
@@ -48,7 +49,7 @@ close(con)
 rm(con)
 ```
 
-Look at colum names:
+Look at column names:
 ```{r}
 colnames(data)
 ```
@@ -64,26 +65,27 @@ According to [Storm Data Documentation](https://d396qusza40orc.cloudfront.net/re
 <...>
 >If the dollar amount of damage is unknown, or not available, check the “no information available” box.
 
-Lets look at PROPDMGEXP and CROPDMGEXP colums that contains these magnitude signifyers:
+Lets look at unique values of PROPDMGEXP and CROPDMGEXP colums that contains these magnitude signifyers:
 ```{r}
 table(data[data$PROPDMG!=0, "PROPDMGEXP"])
 table(data[data$CROPDMG!=0, "CROPDMGEXP"])
 ```
 
 For this analisys we'll assume that lower case characters means that capital ones do.
-As we can see, there are several signifyers of unkown type like "h" or "?" but they have very small accurance when the corresponding DMG colums is not equal zero. There could different theryes but we will not do any bold assumtions and accrording to such a small occurance just drop the rows with them.
+As we can see, there are several signifyers of unkown type like "h" or "?" but they have very small accurance when the corresponding DMG colums is not equal zero. There could be different theories but we will not do any bold assumtions. Accrording to such a small occurance We will map such values to zero and then multiply damage columns by it (drop damage values). We will use summary (not mean) aggregation later, occurance is small, so it is ok for now.
+
 ```{r}
 #make all chars same size
 data$PROPDMGEXP <- tolower(as.character(data$PROPDMGEXP))
 data$CROPDMGEXP <- tolower(as.character(data$CROPDMGEXP))
 
 #making multiplyer
-data$PROPDMGEXP[data$PROPDMGEXP!="b" & data$PROPDMGEXP!="m" & data$PROPDMGEXP!="k"] <- NA
+data$PROPDMGEXP[data$PROPDMGEXP!="b" & data$PROPDMGEXP!="m" & data$PROPDMGEXP!="k"] <- 0
 data$PROPDMGEXP[data$PROPDMGEXP=="b"] <- 1000000000
 data$PROPDMGEXP[data$PROPDMGEXP=="m"] <- 1000000
 data$PROPDMGEXP[data$PROPDMGEXP=="k"] <- 1000
 
-data$CROPDMGEXP[data$CROPDMGEXP!="b" & data$CROPDMGEXP!="m" & data$CROPDMGEXP!="k"] <- NA
+data$CROPDMGEXP[data$CROPDMGEXP!="b" & data$CROPDMGEXP!="m" & data$CROPDMGEXP!="k"] <- 0
 data$CROPDMGEXP[data$CROPDMGEXP=="b"] <- 1000000000
 data$CROPDMGEXP[data$CROPDMGEXP=="m"] <- 1000000
 data$CROPDMGEXP[data$CROPDMGEXP=="k"] <- 1000
@@ -91,12 +93,7 @@ data$CROPDMGEXP[data$CROPDMGEXP=="k"] <- 1000
 #Multiply DMG columns
 data$PROPDMG <- data$PROPDMG * as.numeric(data$PROPDMGEXP)
 data$CROPDMG <- data$CROPDMG * as.numeric(data$CROPDMGEXP)
-```
-
-Now we will convert this dataset to narrow tidy form:
-```{r}
 data <- select(data, EVTYPE, FATALITIES, INJURIES, PROPDMG, CROPDMG)
-data <- gather(data, DMGTYPE, VALUE, -EVTYPE, na.rm = TRUE)
 ```
 
 There are 985 levels of EVTYPE factor. We will try to reduce the number of unique values
@@ -168,11 +165,57 @@ data[grep("rip", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Rip current"
 data[grep("avalanc", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] <- "Avalanche"
 ```
 
-All other values that a still in upper case with map to "Other" category. Group all types together.
+All other values that a still in upper case we'll map to "Other" category. Then group all types together.
 ```{r}
 data$EVTYPE[data$EVTYPE == toupper(data$EVTYPE)] <- "Other"
-data <- group_by(data, EVTYPE, DMGTYPE) %>% summarise(VALUE = sum(VALUE))
-data <- mutate(data, QUESTION = factor(ifelse(DMGTYPE == "PROPDMG" | DMGTYPE == "CROPDMG", "Economic harm", "Health harm")))
-data$EVTYPE <- factor(data$EVTYPE)
 ```
+
+Group data and make columns with total harm mostly for ordering purposes:
+```{r}
+data$EVTYPE <- factor(data$EVTYPE)
+data <- group_by(data, EVTYPE) %>% summarise_each(funs(sum))
+Hdata <- select(mutate(data, TOTALDMG = INJURIES + FATALITIES), EVTYPE, TOTALDMG, INJURIES, FATALITIES)
+Edata <- select(mutate(data, TOTALDMG = PROPDMG + CROPDMG), EVTYPE, TOTALDMG, PROPDMG, CROPDMG)
+rm(data)
+Edata <- arrange(Edata, desc(TOTALDMG))
+Hdata <- arrange(Hdata, desc(TOTALDMG))
+```
+
 ##Results
+###Across the United States, which types of events are most harmful with respect to population health?
+```{r, fig.width=9}
+p <- ggplot(Hdata, aes(x = EVTYPE)) +
+        geom_bar(aes(y = TOTALDMG, fill = "grey95"), stat="identity", colour = "grey") +
+        geom_point(aes(y = INJURIES, colour = "orange"), alpha = 0.7, shape = 19, size = 4) +
+        geom_point(aes(y = FATALITIES, colour = "red"), alpha = 0.7, shape = 19, size = 4) +
+        scale_fill_identity(name = 'Bar', guide = 'legend',labels = c('Total damaged\npeople')) +
+        scale_colour_manual(name = 'Points', 
+                            values =c('orange'='orange','red'='red'), labels = c('Injuries','Fatalities')) +
+        scale_x_discrete(limits = rev(Hdata$EVTYPE)) +
+        scale_y_continuous(labels = comma, breaks = seq(0, 100000, 20000)) +
+        ylab("Count in units") + xlab("Event type") +
+        ggtitle("Total population health damage for 1950 - 2011") +
+        theme_bw() + coord_flip()
+print(p)
+```
+
+Most damage to population health was done by **tornadoes**, **hurricanes**, **heat** and **floods**. Heat comes in second place if we'll count fatalities.
+
+###Across the United States, which types of events have the greatest economic consequences? 
+```{r, fig.width=9}
+p <- ggplot(Edata, aes(x = EVTYPE)) +
+        geom_bar(aes(y = TOTALDMG/1000000, fill = "grey95"), stat="identity", colour = "grey") +
+        geom_point(aes(y = PROPDMG/1000000, colour = "blue"), alpha = 0.7, shape = 19, size = 4) +
+        geom_point(aes(y = CROPDMG/1000000, colour = "brown"), alpha = 0.7, shape = 19, size = 4) +
+        scale_fill_identity(name = 'Bar', guide = 'legend',labels = c('Total damage')) +
+        scale_colour_manual(name = 'Points', 
+                            values =c('blue'='blue','brown'='brown'), labels = c('Property damage','Crop damage')) +
+        scale_x_discrete(limits = rev(Edata$EVTYPE)) +
+        scale_y_continuous(labels = dollar, breaks = seq(0, 175000, 25000)) +
+        ylab("Millions of dollars") + xlab("Event type") +
+        ggtitle("Total economics damage for 1950 - 2011") +
+        theme_bw() + coord_flip()
+print(p)
+```
+
+The to leaders are **floods** and **hurricanes**. If we are talking about crop, **drought** and **cold** did lots of harm too.

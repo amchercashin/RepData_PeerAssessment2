@@ -23,14 +23,30 @@ data <- select(data, EVTYPE, 23:28)
 unique(data[grep("tornado", data$EVTYPE, ignore.case = TRUE), "EVTYPE"] )
 unique(data$EVTYPE)
 
-p <- ggplot(data, aes(x = EVTYPE, y = VALUE)) +
-        #facet_grid(fun ~ companygroup, scales = "free_y") +
-        geom_point() +
-        #geom_smooth(method="loess", se = F) +
-        #scale_y_continuous(labels = space) +
-        #ylab("РўС‹СЃСЏС‡ СЂСѓР±Р»РµР№") +
-        #xlab("2015") +
-        #theme_bw() +
-        t#heme(axis.text.x  = element_text(hjust=1,angle=90, vjust=0.5)) +
-        scale_x_datetime(labels = date_format("%B"), breaks = date_breaks("month"))
+p <- ggplot(Edata, aes(x = EVTYPE)) +
+        geom_bar(aes(y = TOTALDMG/1000000, fill = "grey95"), stat="identity", colour = "grey") +
+        geom_point(aes(y = PROPDMG/1000000, colour = "blue"), alpha = 0.7, shape = 19, size = 5) +
+        geom_point(aes(y = CROPDMG/1000000, colour = "brown"), alpha = 0.7, shape = 19, size = 5) +
+        scale_fill_identity(name = 'Bar', guide = 'legend',labels = c('Total damage')) +
+        scale_colour_manual(name = 'Points', 
+                            values =c('blue'='blue','brown'='brown'), labels = c('Property damage','Crop damage')) +
+        scale_x_discrete(limits = rev(Edata$EVTYPE)) +
+        scale_y_continuous(labels = dollar, breaks = seq(0, 175000, 25000)) +
+        ylab("Millions of dollars") + xlab("Event type") +
+        ggtitle("Total economics damage for 1950 - 2011") +
+        theme_bw() + coord_flip()
+print(p)
+
+p <- ggplot(Hdata, aes(x = EVTYPE)) +
+        geom_bar(aes(y = TOTALDMG, fill = "grey95"), stat="identity", colour = "grey") +
+        geom_point(aes(y = INJURIES, colour = "orange"), alpha = 0.7, shape = 19, size = 5) +
+        geom_point(aes(y = FATALITIES, colour = "red"), alpha = 0.7, shape = 19, size = 5) +
+        scale_fill_identity(name = 'Bar', guide = 'legend',labels = c('Total damaged\npeople')) +
+        scale_colour_manual(name = 'Points', 
+                            values =c('orange'='orange','red'='red'), labels = c('Injuries','Fatalities')) +
+        scale_x_discrete(limits = rev(Hdata$EVTYPE)) +
+        #scale_y_continuous(labels = dollar, breaks = seq(0, 175000, 25000)) +
+        ylab("Count") + xlab("Event type") +
+        ggtitle("Total population health damage for 1950 - 2011") +
+        theme_bw() + coord_flip()
 print(p)
